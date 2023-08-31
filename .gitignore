@@ -1,0 +1,5 @@
+/Release/*
+/*.flac
+/embed.go
+/go.mod
+/go.sum
