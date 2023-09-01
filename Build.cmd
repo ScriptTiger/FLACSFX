@@ -28,6 +28,7 @@ echo Writing "embed.go"...
 
 timeout /t 3 /nobreak > nul
 
+:Menu
 echo.
 echo Generate executable for which operating system and architecture?
 echo 1.] Windows x86_64
@@ -43,39 +44,41 @@ goto %errorlevel%
 :1
 set GOARCH=amd64
 set GOOS=windows
-set app=%app%.exe
+set file=%app%.exe
 goto Build
 
 :2
 set GOARCH=386
 set GOOS=windows
-set app=%app%.exe
+set file=%app%.exe
 goto Build
 
 :3
 set GOARCH=amd64
 set GOOS=linux
+set file=%app%
 goto Build
 
 :4
 set GOARCH=386
 set GOOS=linux
+set file=%app%
 goto Build
 
 :5
 set GOARCH=amd64
 set GOOS=darwin
-set app=%app%.app
+set file=%app%.app
 goto Build
 
 :6
 exit /b
 
 :Build
-echo Building "Release/%app%"...
-call go build -ldflags="-s -w" -o "Release/%app%" flacsfx.go embed.go
+echo Building "Release/%file%"...
+call go build -ldflags="-s -w" -o "Release/%file%" flacsfx.go embed.go
 
 if %errorlevel%==0 (echo Build successful!
 ) else echo Build unsuccessful!
 
-pause
+goto Menu
