@@ -10,23 +10,7 @@ if not exist go.sum (
 	go mod tidy 2> nul
 )
 
-echo Configuring file names...
-for /f "tokens=*" %%0 in ('dir /b ^| findstr /e .flac') do (
-	set FLAC=%%0
-	set WAV=%%~n0.wav
-	set app=%%~n0
-)
-
-echo Writing "embed.go"...
-(
-	echo package main
-	echo import _ "embed"
-	echo //go:embed "%FLAC%"
-	echo var flacRaw []byte
-	echo var wavName string = "%WAV%"
-) > embed.go
-
-timeout /t 3 /nobreak > nul
+set app=FLACSFX
 
 :Menu
 echo.
@@ -44,31 +28,31 @@ goto %errorlevel%
 :1
 set GOARCH=amd64
 set GOOS=windows
-set file=%app%.exe
+set file=%app%_%GOOS%_%GOARCH%.exe
 goto Build
 
 :2
 set GOARCH=386
 set GOOS=windows
-set file=%app%.exe
+set file=%app%_%GOOS%_%GOARCH%.exe
 goto Build
 
 :3
 set GOARCH=amd64
 set GOOS=linux
-set file=%app%
+set file=%app%_%GOOS%_%GOARCH%
 goto Build
 
 :4
 set GOARCH=386
 set GOOS=linux
-set file=%app%
+set file=%app%_%GOOS%_%GOARCH%
 goto Build
 
 :5
 set GOARCH=amd64
 set GOOS=darwin
-set file=%app%.app
+set file=%app%_%GOOS%_%GOARCH%.app
 goto Build
 
 :6
@@ -76,8 +60,7 @@ exit /b
 
 :Build
 echo Building "Release/%file%"...
-call go build -ldflags="-s -w" -o "Release/%file%" flacsfx.go embed.go
-
+call go build -ldflags="-s -w" -o "Release/%file%" flacsfx.go sa.go
 if %errorlevel%==0 (echo Build successful!
 ) else echo Build unsuccessful!
 
