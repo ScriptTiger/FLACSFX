@@ -1,7 +1,7 @@
 [![Say Thanks!](https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg)](https://docs.google.com/forms/d/e/1FAIpQLSfBEe5B_zo69OBk19l3hzvBmz3cOV6ol1ufjh0ER1q3-xd2Rg/viewform)
 
 # FLACSFX: FLAC SelF-eXtracting archive
-FLACSFX is a minimal FLAC-to-WAV transcoder to transcode an embedded FLAC file to a WAV file. The FLAC file can either be emdedded at build time using the `embed.go` or embedded later by appending a FLAC file to a stand-alone FLACSFX executable built with the `sa.go`. This allows you to quickly and easily send losslessly compressed FLAC audio to someone who needs it as a WAV in order to reduce the file size in transit and increase transfer speeds, while also not requiring any technical know-how or additional software on the part of the recipient.
+FLACSFX is a minimal FLAC-to-WAV transcoder to transcode an embedded FLAC file to a WAV file. The FLAC file can either be embedded at build time using the `embed.go` or embedded later by appending a FLAC file to a stand-alone FLACSFX executable built with the `sa.go`. This allows you to quickly and easily send losslessly compressed FLAC audio to someone who needs it as a WAV in order to reduce the file size in transit and increase transfer speeds, while also not requiring any technical know-how or additional software on the part of the recipient.
 
 # Appending a FLAC file to a stand-alone FLACSFX executable, recommended for most users
 Download the latest pre-built release for the intended target system:  
