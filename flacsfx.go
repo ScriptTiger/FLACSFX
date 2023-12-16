@@ -4,13 +4,42 @@ import (
 	"bytes"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/go-audio/audio"
 	"github.com/go-audio/wav"
 	"github.com/mewkiz/flac"
 )
 
+// Function to display help text and exit
+func help(err int) {
+	os.Stdout.WriteString(
+		"Usage: hosts-bl [options...]\n"+
+		" -o <file>     Destination file\n")
+	os.Exit(err)
+}
+
 func main() {
+
+	// Check for invalid number of arguments
+	if len(os.Args) == 2 || len(os.Args) > 3 {
+		help(-1)
+	}
+
+	// Push arguments to flag pointers
+	for i := 1; i < len(os.Args); i++ {
+		if strings.HasPrefix(os.Args[i], "-") {
+			switch strings.TrimPrefix(os.Args[i], "-") {
+				case "o":
+					i++
+					wavName = os.Args[i]
+					continue
+				default:
+					help(-1)
+			}
+		} else {help(-1)}
+	}
+
 	//Parse FLAC byte stream
 	stream, err := flac.New(bytes.NewReader(flacRaw))
 	if err != nil {
@@ -19,19 +48,23 @@ func main() {
 	}
 	defer stream.Close()
 
-	//Initialize wav file writer
-	wavWriter, err := os.Create(wavName)
-	if err != nil {
-		os.Stdout.WriteString("There was a problem creating the new WAV file.")
-		os.Exit(2)
+	//Initialize wav writer
+	var wavWriter *os.File
+	if wavName == "-" {
+		wavWriter = os.Stdout
+	} else {
+		wavWriter, err = os.Create(wavName)
+		if err != nil {
+			os.Stdout.WriteString("There was a problem creating the new WAV file.")
+			os.Exit(2)
+		}
+		os.Stdout.WriteString("Extracting \""+wavName+"\"...")
 	}
 	defer wavWriter.Close()
 
 	//Initialize new wav encoder
 	wavEncoder := wav.NewEncoder(wavWriter, int(stream.Info.SampleRate), int(stream.Info.BitsPerSample), int(stream.Info.NChannels), 1)
 	defer wavEncoder.Close()
-
-	os.Stdout.WriteString("Extracting \""+wavName+"\"...")
 
 	//Decode FLAC samples, encode to WAV, and write to file
 	var data []int

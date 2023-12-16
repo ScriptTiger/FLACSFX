@@ -23,7 +23,7 @@ func init() {
 	// Slurp file into memory
 	fileData, _ := os.ReadFile(filePath)
 
-	// Determine length of transcoder / start of flac data
+	// Determine length of transcoder / start of FLAC data
 	tcSize := int64(1000000)
 	for {
 		if fileData[tcSize-1] == 0x00 &&
@@ -34,10 +34,14 @@ func init() {
 			fileData[tcSize+4] == 0x00 {
 				break
 		}
+		if int(tcSize) == len(fileData)-6 {
+			os.Stdout.WriteString("No FLAC data found.")
+			os.Exit(5)
+		}
 		tcSize++
 	}
 
-	// Calculate length of flac data
+	// Calculate length of FLAC data
 	flacSize := int64(len(fileData))-tcSize
 
 	// Create file data reader
