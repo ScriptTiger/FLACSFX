@@ -10,6 +10,8 @@ Argument                  | Description
 
 `-` can be used in place of `<file>` to designate standard output as the destination, allowing you to quickly pipe the WAV data to a compatible application, such as VLC, without having to extract it to an actual file.
 
+Without any arguments, the embedded FLAC data will be transcoded into the working directory to a WAV file of the same name as the executable, except with the `.wav` extension. So, command-line usage is only optional and the end user can just execute the application as they would any other application for this default behavior.
+
 # Appending a FLAC file to a stand-alone FLACSFX executable, recommended for most users
 Download the latest pre-built release for the intended target system:  
 https://github.com/ScriptTiger/FLACSFX/releases/latest
