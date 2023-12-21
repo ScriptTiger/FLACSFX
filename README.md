@@ -3,6 +3,13 @@
 # FLACSFX: FLAC SelF-eXtracting archive
 FLACSFX is a minimal FLAC-to-WAV transcoder to transcode an embedded FLAC file to a WAV file. The FLAC file can either be embedded at build time using the `embed.go` or embedded later by appending a FLAC file to a stand-alone FLACSFX executable built with the `sa.go`. This allows you to quickly and easily send losslessly compressed FLAC audio to someone who needs it as a WAV in order to reduce the file size in transit and increase transfer speeds, while also not requiring any technical know-how or additional software on the part of the recipient.
 
+Usage: `flacsfx [options...]`
+Argument                  | Description
+--------------------------|-----------------------------------------------------------------------------------------------------
+ `-o <file>`              | Destination file
+
+`-` can be used in place of `<file>` to designate standard output as the destination, allowing you to quickly pipe the WAV data to a compatible application, such as VLC, without having to extract it to an actual file.
+
 # Appending a FLAC file to a stand-alone FLACSFX executable, recommended for most users
 Download the latest pre-built release for the intended target system:  
 https://github.com/ScriptTiger/FLACSFX/releases/latest

@@ -14,7 +14,7 @@ import (
 // Function to display help text and exit
 func help(err int) {
 	os.Stdout.WriteString(
-		"Usage: hosts-bl [options...]\n"+
+		"Usage: flacsfx [options...]\n"+
 		" -o <file>     Destination file\n")
 	os.Exit(err)
 }
