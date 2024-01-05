@@ -8,7 +8,7 @@ Argument                  | Description
 --------------------------|-----------------------------------------------------------------------------------------------------
  `-o <file>`              | Destination file
 
-`-` can be used in place of `<file>` to designate standard output as the destination, allowing you to quickly pipe the WAV data to a compatible application, such as VLC, without having to extract it to an actual file.
+`-` can be used in place of `<file>` to designate standard output as the destination, allowing you to quickly pipe the WAV data to a compatible application, such as VLC, without having to extract it to an actual file. For piping to FFmpeg, you must skip the first 44 bytes of the header and use input parameters to define the audio stream (i.e. to define a stereo audio stream of 24-bit depth and 48 kHz sample rate in order to convert it to AAC and save it as an M4A, you would use the following: `MyFlaxSFX -o - | ffmpeg -skip_initial_bytes 44 -f s24le -ar 48k -ac 2 -i - out.m4a`).
 
 Without any arguments, the embedded FLAC data will be transcoded into the working directory to a WAV file of the same name as the executable, except with the `.wav` extension. So, command-line usage is only optional and the end user can just execute the application as they would any other application for this default behavior.
 
