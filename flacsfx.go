@@ -41,14 +41,14 @@ func main() {
 	}
 
 	//Parse FLAC byte stream
-	stream, err := flac.New(bytes.NewReader(flacRaw))
+	flacStream, err := flac.New(bytes.NewReader(flacRaw))
 	if err != nil {
 		os.Stdout.WriteString("There was a problem parsing the FLAC stream.")
 		os.Exit(1)
 	}
-	defer stream.Close()
+	defer flacStream.Close()
 
-	//Initialize wav writer
+	//Initialize WAV writer
 	var wavWriter *os.File
 	if wavName == "-" {
 		wavWriter = os.Stdout
@@ -62,15 +62,21 @@ func main() {
 	}
 	defer wavWriter.Close()
 
-	//Initialize new wav encoder
-	wavEncoder := wav.NewEncoder(wavWriter, int(stream.Info.SampleRate), int(stream.Info.BitsPerSample), int(stream.Info.NChannels), 1)
+	//Initialize WAV encoder
+	wavEncoder := wav.NewEncoder(
+		wavWriter,
+		int(flacStream.Info.SampleRate),
+		int(flacStream.Info.BitsPerSample),
+		int(flacStream.Info.NChannels),
+		1,
+	)
 	defer wavEncoder.Close()
 
 	//Decode FLAC samples, encode to WAV, and write to file
 	var data []int
 	for {
 		//Decode FLAC audio samples
-		frame, err := stream.ParseNext()
+		frame, err := flacStream.ParseNext()
 		if err != nil {
 			if err == io.EOF {
 				break
@@ -87,18 +93,21 @@ func main() {
 				if frame.BitsPerSample == 8 {sample += 0x80}
 				data = append(data, sample)
 			}
-		}
-		buf := &audio.IntBuffer{
-			Format: &audio.Format{
-				NumChannels: int(stream.Info.NChannels),
-				SampleRate: int(stream.Info.SampleRate),
+		}		
+
+		//Write the encoded WAV stream to file
+		wavEncoder.Write(
+			&audio.IntBuffer{
+				Format: &audio.Format{
+					NumChannels: int(flacStream.Info.NChannels),
+					SampleRate: int(flacStream.Info.SampleRate),
+				},
+				Data: data,
+				SourceBitDepth: int(flacStream.Info.BitsPerSample),
 			},
-			Data: data,
-			SourceBitDepth: int(stream.Info.BitsPerSample),
-		}
-		wavEncoder.Write(buf)
+		)
 		if err != nil {
-			os.Stdout.WriteString("There was a problem writing the buffered WAV stream to the file.")
+			os.Stdout.WriteString("There was a problem writing the WAV stream to the file.")
 			os.Exit(4)
 		}
 	}
