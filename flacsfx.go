@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -16,6 +17,7 @@ import (
 func help(err int) {
 	os.Stdout.WriteString(
 		"Usage: flacsfx [options...]\n"+
+		" -flac         Output FLAC\n"+
 		" -o <file>     Destination file\n"+
 		" -info         Show stream info",
 	)
@@ -52,18 +54,35 @@ func main() {
 		help(-1)
 	}
 
+	// Initialize misc variables
+	var (
+		flacStream *flac.Stream
+		err error
+	)
+
 	// Initialize uninitialized flags
-	var info bool
+	var (
+		flacenc bool
+		orw bool
+		info bool
+	)
 
 	// Push arguments to flag pointers
 	for i := 1; i < len(os.Args); i++ {
 		if strings.HasPrefix(os.Args[i], "-") {
 			switch strings.TrimPrefix(os.Args[i], "-") {
+				case "flac":
+					if flacenc {help(-1)}
+					flacenc = true
+					continue
 				case "o":
+					if orw {help(-1)}
 					i++
 					wavName = os.Args[i]
+					orw = true
 					continue
 				case "info":
+					if info {help(-1)}
 					info = true
 					continue
 				default:
@@ -72,48 +91,65 @@ func main() {
 		} else {help(-1)}
 	}
 
-	// Parse FLAC byte stream
-	flacStream, err := flac.New(bytes.NewReader(flacRaw))
-	if err != nil {
-		os.Stdout.WriteString("There was a problem parsing the FLAC stream.")
-		os.Exit(1)
-	}
-	defer flacStream.Close()
+	if !flacenc {
+		// Parse FLAC byte stream
+		flacStream, err = flac.New(bytes.NewReader(flacRaw))
+		if err != nil {
+			os.Stdout.WriteString("There was a problem parsing the FLAC stream.")
+			os.Exit(1)
+		}
+		defer flacStream.Close()
 
-	// Display stream info and exit
-	if info {
-		os.Stdout.WriteString(
-			"codec_name=flac\n"+
-			"codec_long_name=FLAC (Free Lossless Audio Codec)\n"+
-			"codec_type=audio\n"+
-			"sample_rate="+strconv.FormatUint(uint64(flacStream.Info.SampleRate), 10)+"\n"+
-			"channels="+strconv.Itoa(int(flacStream.Info.NChannels))+"\n"+
-			"channel_layout="+layoutLookup(flacStream.Info.NChannels)+"\n"+
-			"time_base=1/"+strconv.FormatUint(uint64(flacStream.Info.SampleRate), 10)+"\n"+
-			"duration_ts="+strconv.FormatUint(uint64(flacStream.Info.NSamples), 10)+"\n"+
-			"duration="+strconv.FormatFloat(float64(flacStream.Info.NSamples)/float64(flacStream.Info.SampleRate), 'f', -1, 64)+"\n"+
-			"bits_per_raw_sample="+strconv.Itoa(int(flacStream.Info.BitsPerSample)),
-		)
-		os.Exit(0)
+		// Display stream info and exit
+		if info {
+			os.Stdout.WriteString(
+				"codec_name=flac\n"+
+				"codec_long_name=FLAC (Free Lossless Audio Codec)\n"+
+				"codec_type=audio\n"+
+				"sample_rate="+strconv.FormatUint(uint64(flacStream.Info.SampleRate), 10)+"\n"+
+				"channels="+strconv.Itoa(int(flacStream.Info.NChannels))+"\n"+
+				"channel_layout="+layoutLookup(flacStream.Info.NChannels)+"\n"+
+				"time_base=1/"+strconv.FormatUint(uint64(flacStream.Info.SampleRate), 10)+"\n"+
+				"duration_ts="+strconv.FormatUint(uint64(flacStream.Info.NSamples), 10)+"\n"+
+				"duration="+strconv.FormatFloat(float64(flacStream.Info.NSamples)/float64(flacStream.Info.SampleRate), 'f', -1, 64)+"\n"+
+				"bits_per_raw_sample="+strconv.Itoa(int(flacStream.Info.BitsPerSample)),
+			)
+			os.Exit(0)
+		}
 	}
 
-	// Initialize WAV writer
-	var wavWriter *os.File
+	// Rewrite file name if needed
+	if flacenc && !orw {
+		wavName = strings.TrimSuffix(wavName, filepath.Ext(wavName))+".flac"
+	}
+
+	// Initialize file writer
+	var fileWriter *os.File
 	if wavName == "-" {
-		wavWriter = os.Stdout
+		fileWriter = os.Stdout
 	} else {
-		wavWriter, err = os.Create(wavName)
+		fileWriter, err = os.Create(wavName)
 		if err != nil {
 			os.Stdout.WriteString("There was a problem creating the new WAV file.")
 			os.Exit(2)
 		}
 		os.Stdout.WriteString("Extracting \""+wavName+"\"...")
 	}
-	defer wavWriter.Close()
+	defer fileWriter.Close()
+
+	if flacenc {
+		// If flac requested, write to file and exit
+		_, err = fileWriter.Write(flacRaw)
+		if err != nil {
+			os.Stdout.WriteString("There was a problem writing the FLAC stream to the file.")
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
 
 	// Initialize WAV encoder
 	wavEncoder := wav.NewEncoder(
-		wavWriter,
+		fileWriter,
 		int(flacStream.Info.SampleRate),
 		int(flacStream.Info.BitsPerSample),
 		int(flacStream.Info.NChannels),

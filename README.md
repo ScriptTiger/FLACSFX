@@ -6,10 +6,11 @@ FLACSFX is a minimal FLAC-to-WAV transcoder to transcode an embedded FLAC file t
 Usage: `flacsfx [options...]`
 Argument                  | Description
 --------------------------|-----------------------------------------------------------------------------------------------------
+ `-flac`                  | Output FLAC
  `-o <file>`              | Destination file
  `-info`                  | Show stream info
 
-`-` can be used in place of `<file>` to designate standard output as the destination, allowing you to quickly pipe the WAV data to a compatible application, such as VLC, without having to extract it to an actual file. For piping to FFmpeg, you must skip the first 44 bytes of the header and use input parameters to define the audio stream (i.e. to define a stereo audio stream of 24-bit depth and 48 kHz sample rate in order to convert it to AAC and save it as an M4A, you would use the following: `MyFlaxSFX -o - | ffmpeg -skip_initial_bytes 44 -f s24le -ar 48k -ac 2 -i - out.m4a`). Alternatively, with FFmpeg, you could also use the `-skip_initial_bytes` and `-f flac` input parameters with the FLACSFX executable as the input in order to access the FLAC audio stream directly, inclduing the FLAC header, so that no further input parameters are needed.
+`-` can be used in place of `<file>` to designate standard output as the destination. When piping a FLAC stream, the complete header is included. However, when piping a WAV stream, the header is unfinished until the write operation is complete, meaning you may have to skip the first 44 bytes in order for the receiving application to process the stream in real time.
 
 Without any arguments, the embedded FLAC data will be transcoded into the working directory to a WAV file of the same name as the executable, except with the `.wav` extension. So, command-line usage is only optional and the end user can just execute the application as they would any other application for this default behavior.
 
