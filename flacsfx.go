@@ -142,7 +142,7 @@ func main() {
 		_, err = fileWriter.Write(flacRaw)
 		if err != nil {
 			os.Stdout.WriteString("There was a problem writing the FLAC stream to the file.")
-			os.Exit(1)
+			os.Exit(4)
 		}
 		os.Exit(0)
 	}
