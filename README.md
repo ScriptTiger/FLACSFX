@@ -12,7 +12,7 @@ Argument                  | Description
 
 `-` can be used in place of `<file>` to designate standard output as the destination. When piping a FLAC stream, the complete header is included. However, when piping a WAV stream, the header is unfinished until the write operation is complete, meaning you may have to skip the first 44 bytes in order for the receiving application to process the stream in real time.
 
-Without any arguments, the embedded FLAC data will be transcoded into the working directory to a WAV file of the same name as the executable, except with the `.wav` extension. So, command-line usage is only optional and the end user can just execute the application as they would any other application for this default behavior.
+Without any arguments, the embedded FLAC data will be transcoded into the working directory to a WAV file of the same name as the executable, or TITLE metadata tag if present within the FLAC, except with the `.wav` extension. So, command-line usage is only optional and the end user can just execute the application as they would any other application for this default behavior.
 
 # Appending a FLAC file to a stand-alone FLACSFX executable, recommended for most users
 Download the latest pre-built release for the intended target system:  

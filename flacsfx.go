@@ -103,6 +103,7 @@ func main() {
 		// Display stream info and exit
 		if info {
 			os.Stdout.WriteString(
+				"TITLE="+wavName+"\n"+
 				"codec_name=flac\n"+
 				"codec_long_name=FLAC (Free Lossless Audio Codec)\n"+
 				"codec_type=audio\n"+
