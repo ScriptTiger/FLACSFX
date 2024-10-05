@@ -1,75 +1,45 @@
 [![Say Thanks!](https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg)](https://docs.google.com/forms/d/e/1FAIpQLSfBEe5B_zo69OBk19l3hzvBmz3cOV6ol1ufjh0ER1q3-xd2Rg/viewform)
 
 # FLACSFX: FLAC SelF-eXtracting archive
-FLACSFX is a minimal FLAC-to-WAV transcoder to transcode an embedded FLAC file to a WAV file. The FLAC file can either be embedded at build time using the `embed.go` or embedded later by appending a FLAC file to a stand-alone FLACSFX executable built with the `sa.go`. This allows you to quickly and easily send losslessly compressed FLAC audio to someone who needs it as a WAV in order to reduce the file size in transit and increase transfer speeds, while also not requiring any technical know-how or additional software on the part of the recipient.
+FLACSFX is a minimal FLAC-to-WAV transcoder and multitrack FLAC mixer. The transcoder component transcodes embedded FLAC files to WAV files. The FLAC files are embedded by appending them to a precompiled FLACSFX executable. The multitrack FLAC mixer can mix the embedded FLAC tracks and output the mix either to a file or piped to standard output, to be played by VLC or other compatible applications without needing to write it to a file. This allows you to quickly and easily send losslessly compressed FLAC audio to someone who needs it as WAVs in order to reduce the file size in transit and increase transfer speeds, while also not requiring any technical know-how or additional software on the part of the recipient. And the mixer can be used either to extract the multitrack mix without having to store an additional mixed master track, or it can simply be used for quickly sampling the mixed audio when piped to something like VLC.
 
 Usage: `flacsfx [options...]`
 Argument                  | Description
 --------------------------|-----------------------------------------------------------------------------------------------------
  `-flac`                  | Output FLAC
- `-o <file>`              | Destination file
+ `-mix`                   | Output mix
+ `-o <directory\|file>`   | Destination directory, or file for mix
+ `-b <16\|24\|32>`        | Bit depth of mix
  `-info`                  | Show stream info
 
-`-` can be used in place of `<file>` to designate standard output as the destination. When piping a FLAC stream, the complete header is included. However, when piping a WAV stream, the header is unfinished until the write operation is complete, meaning you may have to skip the first 44 bytes in order for the receiving application to process the stream in real time.
+`-` can be used in place of `<file>` to designate standard output as the destination for a mix.
 
-Without any arguments, the embedded FLAC data will be transcoded into the working directory to a WAV file of the same name as the executable, or TITLE metadata tag if present within the FLAC, except with the `.wav` extension. So, command-line usage is only optional and the end user can just execute the application as they would any other application for this default behavior.
+Without any arguments, the embedded FLACs will be transcoded into the working directory within a new directory of the same name as the executable. The extracted audio files will either be titled using the pattern of `#_<executable name>`, or titled after the TITLE metadata tag if present within the FLAC. So, command-line usage is only optional and the end user can just execute the application as they would any other application for this default behavior.
 
-# Appending a FLAC file to a stand-alone FLACSFX executable, recommended for most users
-Download the latest pre-built release for the intended target system:  
+# Appending a FLAC file to a FLACSFX executable
+Download the latest precompiled releases for the intended target system:  
 https://github.com/ScriptTiger/FLACSFX/releases/latest
 
-For appending a FLAC file to a FLACSFX executable, issue one of the following commands.
+For appending FLAC files to a FLACSFX executable, issue one of the following commands.
 
 For Windows:
 ```
-copy /b "FLACSFX.exe"+"file.flac" "MyFLACSFX.exe"
+copy /b "FLACSFX.exe"+"file1.flac"+"file2.flac"+... "MyFLACSFX.exe"
 ```
 
 For Linux and Mac:
 ```
-cat "FLACSFX" "file.flac" > "MyFLACSFX"
+cat "FLACSFX" "file1.flac" "file2.flac" ... > "MyFLACSFX"
 ```
 
-# Building a FLACSFX application in Go, for Windows users
-If you would like to embed a FLAC file at build time, you can use the `Build-embed.cmd`. To use, simply place a FLAC file into the repository's root directory and execute the `Build-embed.cmd`. When the resultant application is executed, it will transcode the embedded FLAC file to a WAV file.
+# Single-track FLACSFX
+If you don't need any of the more advanced features of the newer version, such as built-in mixing and multitrack capabilities for embedding multiple audio files, the older version for simply embedding a single audio file is still available, although no longer maintained.
 
-If you would like to build a stand-alone FLACSFX executable and append a FLAC file to it later, execute the `Build-SA.cmd`.
+README:  
+https://github.com/ScriptTiger/FLACSFX/tree/4ffca93e97a915359c7511f26735ca35a7eac0bd
 
-# Building a FLACSFX application in Go, for non-Windows users
-**Step 1:**  
-Navigate to the root directory of this repostory and open a terminal session with the root directory as the current working directory. Ensure the `GOARCH` and `GOOS` environmental variables are set to their appropriate values for the desired target system. Possible values for `GOARCH` include `amd64` and `386`. Possible values for `GOOS` include `windows`, `linux`, and `darwin` (Mac).
-
-**Step 2:**  
-If this is the first time you are using this project, you will need to initialize the go module by issuing the following commands consecutively into the terminal.
-```
-go mod init main
-go mod tidy
-```
-
-**Step 3 (Skip if not embedding at build time):**  
-Ensure the desired FLAC file that will be embedded is placed within the root directory. Create a file named `embed.go` within the root directory following the below template, making sure to replace `file.flac` and `file.wav` with their respective values. `file.flac` should be replaced by the name of the desired FLAC file you wish to embed, `file.wav` should be replaced by the desired name of the WAV file which the application will create.
-```
-package main
-
-import _ "embed"
-
-//go:embed "file.flac"
-var flacRaw []byte
-var wavName string = "file.wav"
-```
-
-**Step 4:**  
-Build the application by issuing one of the following commands into the terminal, making sure to replace `MyFLACSFX` with the desired name of the application file.
-
-For embedding a FLAC file at build time:
-```
-go build -ldflags="-s -w" -o "MyFLACSFX" flacsfx.go embed.go
-```
-
-For creating a stand-alone FLACSFX executable which you can append a FLAC file to later:
-```
-go build -ldflags="-s -w" -o "MyFLACSFX" flacsfx.go sa.go
-```
+Precompiled executables:  
+https://github.com/ScriptTiger/FLACSFX/releases/tag/25AUG2024
 
 # More About ScriptTiger
 
