@@ -16,7 +16,7 @@ Argument                  | Description
 
 Without any arguments, the embedded FLACs will be transcoded into the working directory within a new directory of the same name as the executable. The extracted audio files will either be titled using the pattern of `#_<executable name>`, or titled after the TITLE metadata tag if present within the FLAC. So, command-line usage is only optional and the end user can just execute the application as they would any other application for this default behavior.
 
-# Appending a FLAC file to a FLACSFX executable
+# Appending FLAC files to a FLACSFX executable
 Download the latest precompiled releases for the intended target system:  
 https://github.com/ScriptTiger/FLACSFX/releases/latest
 
