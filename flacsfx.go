@@ -267,6 +267,7 @@ func main() {
 	bufferCap := 8000
 
 	// Build the index of embedded FLAC streams
+	if *outName != "-" {os.Stdout.WriteString("Indexing embedded FLAC streams...\n")}
 	readPoint := int64(1500000)
 	sfxFile.Seek(readPoint, io.SeekStart)
 	sfxReader := bufio.NewReader(sfxFile)
@@ -410,7 +411,12 @@ func main() {
 	if mix && !isMixable {
 		if numTracks < 2 {
 			os.Stdout.WriteString("You need at least 2 tracks to mix.\n")
-		} else {os.Stdout.WriteString("The tracks cannot be mixed due to having incompatible formats.\n")}
+		} else {
+			os.Stdout.WriteString(
+				"The tracks cannot be mixed due to having incompatible formats.\n"+
+				"Use the -info argument for more information on the formats of the embedded streams.\n",
+			)
+		}
 		exit(&index, 13)
 	}
 
@@ -451,6 +457,8 @@ func main() {
 
 		// Initialize TrackInfos slice for source tracks
 		sourceTracks = make([]*mixerInG.TrackInfo, numTracks)
+
+		if *outName != "-" {os.Stdout.WriteString("Mixing to \""+*outName+"\"...\n")}
 	}
 
 	// Decode FLAC audio samples to buffers and feed to individual track wav encoders, or to mix and wav encoder if mix requested
