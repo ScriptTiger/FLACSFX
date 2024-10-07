@@ -1,18 +1,19 @@
 [![Say Thanks!](https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg)](https://docs.google.com/forms/d/e/1FAIpQLSfBEe5B_zo69OBk19l3hzvBmz3cOV6ol1ufjh0ER1q3-xd2Rg/viewform)
 
 # FLACSFX: FLAC SelF-eXtracting archive
-FLACSFX is a minimal FLAC-to-WAV transcoder and multitrack FLAC mixer. The transcoder component transcodes embedded FLAC files to WAV files. The FLAC files are embedded by appending them to a precompiled FLACSFX executable. The multitrack FLAC mixer can mix the embedded FLAC tracks and output the mix either to a file or piped to standard output, to be played by VLC or other compatible applications without needing to write it to a file. This allows you to quickly and easily send losslessly compressed FLAC audio to someone who needs it as WAVs in order to reduce the file size in transit and increase transfer speeds, while also not requiring any technical know-how or additional software on the part of the recipient. And the mixer can be used either to extract the multitrack mix without having to store an additional mixed master track, or it can simply be used for quickly sampling the mixed audio when piped to something like VLC.
+FLACSFX is a minimal FLAC-to-WAV transcoder and multitrack FLAC mixer for embedded FLAC archives. The FLAC files are embedded and archived by appending them to a precompiled FLACSFX executable. The transcoder component transcodes embedded FLAC files to WAV files. The multitrack FLAC mixer can mix any combination of compatible embedded FLAC tracks and output the mix either to a file or standard output, to be played by VLC or other compatible applications without needing to write it to a file.
 
 Usage: `flacsfx [options...]`
 Argument                  | Description
 --------------------------|-----------------------------------------------------------------------------------------------------
+ `-i <#,#-#,...>`         | Index entries to include
+ `-o <directory\|file>`   | Destination directory, or file for single entry or mix
  `-flac`                  | Output FLAC
  `-mix`                   | Output mix
- `-o <directory\|file>`   | Destination directory, or file for mix
  `-b <16\|24\|32>`        | Bit depth of mix
  `-info`                  | Show stream info
 
-`-` can be used in place of `<file>` to designate standard output as the destination for a mix.
+By default, a new directory is created to extract the audio files to. However, if only one entry is selected, or a mix is being created, the output is a file and not a directory. `-` can thus be used in place of `<file>` to designate standard output as the destination for a single entry or mix, allowing single entries and mixes to be sampled by compatible software, such as VLC, without needing to write a file.
 
 Without any arguments, the embedded FLACs will be transcoded into the working directory within a new directory of the same name as the executable. The extracted audio files will either be titled using the pattern of `#_<executable name>`, or titled after the TITLE metadata tag if present within the FLAC. So, command-line usage is only optional and the end user can just execute the application as they would any other application for this default behavior.
 
