@@ -301,12 +301,6 @@ func main() {
 		if mix {*outName = *outName+".wav"}
 	}
 
-	// Create output directory, or do nothing if it already exists
-	if !info {
-		if mix || isSingle {os.MkdirAll(filepath.Dir(*outName), 0755)
-		} else {os.MkdirAll(*outName, 0755)}
-	}
-
 	// Determine total file size
 	fileInfo, _ := sfxFile.Stat()
 	sfxTotalSize := fileInfo.Size()
@@ -402,6 +396,10 @@ func main() {
 				SampleRate: index[i].sampleRate,
 			}
 			if !info {
+				if i == 0 {
+					if mix || isSingle {os.MkdirAll(filepath.Dir(*outName), 0755)
+					} else {os.MkdirAll(*outName, 0755)}
+				}
 				if !mix {
 					index[i].outName = new(string)
 					if *outName == "-" {index[i].outFile = os.Stdout
