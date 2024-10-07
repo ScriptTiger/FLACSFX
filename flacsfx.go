@@ -301,7 +301,7 @@ func main() {
 	bufferCap := 8000
 
 	// Build the index of embedded FLAC streams
-	if outName != nil && *outName != "-" {os.Stdout.WriteString("Indexing embedded FLAC streams...\n")}
+	if !(newName && *outName == "-") {os.Stdout.WriteString("Indexing embedded FLAC streams...\n")}
 	readPoint := int64(1500000)
 	sfxFile.Seek(readPoint, io.SeekStart)
 	sfxReader := bufio.NewReader(sfxFile)
@@ -309,7 +309,8 @@ func main() {
 	isMixable := true
 	var titleBuilder strings.Builder
 	var index []flacInfo
-	for numIndex := -1;; readPoint++ {
+	numIndex := -1
+	for ;; readPoint++ {
 		i := len(index)
 		if fileScanner(&block, sfxReader) != nil {
 			if numIndex == -1 {
@@ -334,18 +335,13 @@ func main() {
 			for i, _ := range block {block[i] = '\x00'}
 			flacFileReader := bufio.NewReader(index[i].file)
 			for {
-				if fileScanner(&block, flacFileReader) != nil {
-					index[i].title = strconv.Itoa(i)+"_"+strings.TrimSuffix(filepath.Base(filePath), filepath.Ext(filePath))
-					break
-				}
+				if fileScanner(&block, flacFileReader) != nil {break}
 				if string(block) == "\x00TITLE=" {
 					for {
 						titleByte, _ := flacFileReader.ReadByte()
 						if titleByte == '\x00' {
 							titleSize := titleBuilder.Len()
-							if titleSize == 0 {
-								index[i].title = strconv.Itoa(i)+"_"+strings.TrimSuffix(filepath.Base(filePath), filepath.Ext(filePath))
-							} else {
+							if titleSize != 0 {
 								index[i].title = string([]byte(titleBuilder.String())[0:titleSize-1])
 								titleBuilder.Reset()
 							}
@@ -355,10 +351,7 @@ func main() {
 					}
 					break
 				}
-				if string(block) == strings.Repeat("\x00", 16) {
-					index[i].title = strconv.Itoa(i)+"_"+strings.TrimSuffix(filepath.Base(filePath), filepath.Ext(filePath))
-					break
-				}
+				if string(block) == strings.Repeat("\x00", 16) {break}
 			}
 			index[i].file.Seek(currentPoint, io.SeekStart)
 			index[i].stream, err = flac.New(index[i].file)
@@ -399,6 +392,20 @@ func main() {
 	// Close sfxFile as it's no longer needed
 	sfxFile.Close()
 
+	// Store number of tracks
+	numTracks := len(index)
+
+	// Check if only a single output track
+	if numTracks == 1 {isSingle = true}
+
+	// Set default title if none provided from metadata
+	for i, _ := range index {
+		if index[i].title == "" {
+			if isSingle && numIndex == 0 {index[i].title = strings.TrimSuffix(filepath.Base(filePath), filepath.Ext(filePath))
+			} else {index[i].title = strconv.Itoa(index[i].index)+"_"+strings.TrimSuffix(filepath.Base(filePath), filepath.Ext(filePath))}
+		}
+	}
+
 	// Display stream info if requested and exit
 	if info {
 		os.Stdout.WriteString("mixable="+strconv.FormatBool(isMixable)+"\n")
@@ -422,12 +429,6 @@ func main() {
 		}
 		exit(&index, 0)
 	}
-
-	// Store number of tracks
-	numTracks := len(index)
-
-	// Check if only a single output track
-	if numTracks == 1 {isSingle = true}
 
 	// Reject requests to write to standard output that are not single tracks
 	if outName != nil && *outName == "-" && !mix && !isSingle {
