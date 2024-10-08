@@ -11,11 +11,15 @@ Argument                  | Description
  `-flac`                  | Output FLAC
  `-mix`                   | Output mix
  `-b <16\|24\|32>`        | Bit depth of mix
+ `-a`                     | Attenuate linearly to prevent clipping in mix, dividing by number of tracks
  `-info`                  | Show stream info
 
 By default, a new directory is created to extract the audio files to. However, if only one entry is selected, or a mix is being created, the output is a file and not a directory. `-` can thus be used in place of `<file>` to designate standard output as the destination for a single entry or mix, allowing single entries and mixes to be sampled by compatible software, such as VLC, without needing to write a file.
 
-Without any arguments, the embedded FLACs will be transcoded into the working directory within a new directory of the same name as the executable, or into the working directory directly if only one embedded FLAC is present. The extracted audio files will either be titled using the pattern of `#_<executable name>`, or titled after the TITLE metadata tag if present within the FLAC. So, command-line usage is only optional and the end user can just execute the application as they would any other application for this default behavior.
+Without any arguments, the embedded FLACs will be transcoded into the working directory within a new directory of the same name as the executable, or into the working directory directly if only one embedded FLAC is present. The extracted audio files will either be titled using the pattern of `<track number>_<executable name>`, or simply `<executable name>` if only one embedded FLAC is present, or titled after the TITLE metadata tag if present within the FLAC. So, command-line usage is only optional and the end user can just execute the application as they would any other application for this default behavior.
+
+For additional notes on the mixer package used, please refer to its documentation:  
+https://github.com/ScriptTiger/mixerInG
 
 # Appending FLAC files to a FLACSFX executable
 Download the latest precompiled releases for the intended target system:  

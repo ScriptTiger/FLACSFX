@@ -134,7 +134,8 @@ func help(err int) {
 		" -flac               Output FLAC\n"+
 		" -mix                Output mix\n"+
 		" -b <16|24|32>       Bit depth of mix\n"+
-		" -info               Show stream info",
+		" -a                  Attenuate linearly to prevent clipping in mix, dividing by number of tracks\n"+
+		" -info               Show stream info\n",
 	)
 	os.Exit(err)
 }
@@ -216,6 +217,7 @@ func main() {
 		mix bool
 		info bool
 		bitDepth int
+		attenuate bool
 		err error
 		errBool bool
 	)
@@ -252,19 +254,23 @@ func main() {
 					bitDepth != 24 &&
 					bitDepth != 32) {help(7)}
 					continue
+				case "a":
+					if attenuate {help(8)}
+					attenuate = true
+					continue
 				case "info":
-					if info {help(8)}
+					if info {help(9)}
 					info = true
 					break
 				case "":
-					if outName != nil {help(9)}
+					if outName != nil {help(10)}
 					outName = &os.Args[i]
 					continue
 				default:
-					help(10)
+					help(11)
 			}
 		} else {
-			if outName != nil {help(11)}
+			if outName != nil {help(12)}
 			outName = &os.Args[i]
 			continue
 		}
@@ -282,9 +288,9 @@ func main() {
 	if numIncluded == 1 {isSingle = true}
 
 	// Validate arguments
-	if (mix && (flacenc || isSingle)) ||
-	(!mix && bitDepth > 0) ||
-	(info && (outName != nil || mix || flacenc || bitDepth > 0)) {help(12)}
+	if (mix && (flacenc || isSingle || info)) ||
+	(!mix && (bitDepth > 0 || attenuate)) ||
+	(info && (newName || flacenc || bitDepth > 0 || attenuate)) {help(13)}
 
 	// Locate executable
 	filePath, _ := os.Executable()
@@ -316,11 +322,11 @@ func main() {
 			if numIndex == -1 {
 				os.Stdout.WriteString("No embedded FLAC streams found.\n")
 				sfxFile.Close()
-				exit(&index, 13)
+				exit(&index, 14)
 			} else if i == 0 {
 				os.Stdout.WriteString("None of the requested streams exist.\n")
 				sfxFile.Close()
-				exit(&index, 14)
+				exit(&index, 15)
 			}
 			if index[i-1].size == 0 {index[i-1].size = sfxTotalSize-index[i-1].start}
 			if i < 2 {isMixable = false}
@@ -433,7 +439,7 @@ func main() {
 	// Reject requests to write to standard output that are not single tracks
 	if outName != nil && *outName == "-" && !mix && !isSingle {
 		os.Stdout.WriteString("Can only write a single track to standard output, but multiple selected.\n")
-		exit(&index, 15)
+		exit(&index, 16)
 	}
 
 	// Set default output directory, or default mix file, if not given as argument
@@ -461,7 +467,7 @@ func main() {
 				index[i].outFile, err = os.Create(*index[i].outName)
 				if err != nil {
 					os.Stdout.WriteString ("A problem was encountered while attempting to write to \""+*index[i].outName+"\".\n")
-					exit(&index, 16)
+					exit(&index, 17)
 				}
 			}
 			if !flacenc {
@@ -497,7 +503,7 @@ func main() {
 				"Use the -info and -i arguments together to validate if a subset of tracks are mixable.\n",
 			)
 		}
-		exit(&index, 17)
+		exit(&index, 18)
 	}
 
 	// Set up mix properties if needed
@@ -519,7 +525,7 @@ func main() {
 			outFile, err = os.Create(*outName)
 			if err != nil {
 				os.Stdout.WriteString("A problem was encountered while attempting to write to \""+*outName+"\".\n")
-				exit(&index, 18)
+				exit(&index, 19)
 			}
 		}
 
@@ -568,7 +574,7 @@ func main() {
 				FloatBuffer: track.floatBuffer,
 			}
 		}
-		mixTrackSize := mixerInG.Mix(mixFloatBuffer, sourceTracks, bitDepth, false)
+		mixTrackSize := mixerInG.Mix(mixFloatBuffer, sourceTracks, bitDepth, attenuate)
 		wavEnc.Write(mixFloatBuffer.AsIntBuffer())
 		if mixTrackSize < bufferCap {break}
 		for i, _ := range sourceTracks {index[i].bufferSize = 0}
