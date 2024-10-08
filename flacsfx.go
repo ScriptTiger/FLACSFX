@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/binary"
 	"bufio"
 	"io"
 	"os"
@@ -130,12 +131,14 @@ func help(err int) {
 	os.Stdout.WriteString(
 		"Usage: flacsfx [options...]\n"+
 		" -i <#,#-#,...>      Index entries to include\n"+      
-		" -o <directory|file> Destination directory, or file for single entry or mix\n"+
-		" -flac               Output FLAC\n"+
-		" -mix                Output mix\n"+
+		" -o <directory|file> Destination directory, or file for single entry, mix, or index\n"+
+		" -flac               Output FLAC, cannot be used with -mix\n"+
+		" -mix                Output mix to WAV\n"+
 		" -b <16|24|32>       Bit depth of mix\n"+
 		" -a                  Attenuate linearly to prevent clipping in mix, dividing by number of tracks\n"+
-		" -info               Show stream info\n",
+		" -info               Show stream info\n"+
+		" -index              Save the index to a file\n"+
+		" -ignoreindex        Ignore the index\n",
 	)
 	os.Exit(err)
 }
@@ -213,11 +216,14 @@ func main() {
 	var (
 		include []int
 		outName *string
+		outFile *os.File
 		flacenc bool
 		mix bool
 		info bool
 		bitDepth int
 		attenuate bool
+		genIndex bool
+		ignoreIndex bool
 		err error
 		errBool bool
 	)
@@ -262,15 +268,23 @@ func main() {
 					if info {help(9)}
 					info = true
 					break
+				case "index":
+					if genIndex {help(10)}
+					genIndex = true
+					break
+				case "ignoreindex":
+					if ignoreIndex {help(11)}
+					ignoreIndex = true
+					break
 				case "":
-					if outName != nil {help(10)}
+					if outName != nil {help(12)}
 					outName = &os.Args[i]
 					continue
 				default:
-					help(11)
+					help(13)
 			}
 		} else {
-			if outName != nil {help(12)}
+			if outName != nil {help(14)}
 			outName = &os.Args[i]
 			continue
 		}
@@ -288,9 +302,10 @@ func main() {
 	if numIncluded == 1 {isSingle = true}
 
 	// Validate arguments
-	if (mix && (flacenc || isSingle || info)) ||
+	if (mix && (flacenc || isSingle || info || genIndex)) ||
 	(!mix && (bitDepth > 0 || attenuate)) ||
-	(info && (newName || flacenc || bitDepth > 0 || attenuate)) {help(13)}
+	(info && (newName || flacenc || bitDepth > 0 || attenuate)) ||
+	(genIndex && (info || flacenc || bitDepth > 0 || attenuate)) {help(15)}
 
 	// Locate executable
 	filePath, _ := os.Executable()
@@ -303,96 +318,136 @@ func main() {
 	fileInfo, _ := sfxFile.Stat()
 	sfxTotalSize := fileInfo.Size()
 
+	// Check if pregenerated index available, and load if it is, unless requested to ignore it
+	var isIndexed bool
+	var indexSize int
+	var embeddedIndex [][]int64
+	sfxMagic := "FlAcSfX"
+	indexBlock := make([]byte, 8)
+	if !ignoreIndex {
+		sfxFile.Seek(sfxTotalSize-8, io.SeekStart)
+		sfxFile.Read(indexBlock)
+		if string(indexBlock[1:8]) == sfxMagic {
+			indexSize = int(indexBlock[0])+1
+			isIndexed = true
+			sfxFile.Seek(sfxTotalSize-int64(8+(8*2*indexSize)), io.SeekStart)
+			for i := 0; i < indexSize; i++ {
+				var start int64
+				var size int64
+				binary.Read(sfxFile, binary.LittleEndian, &start)
+				binary.Read(sfxFile, binary.LittleEndian, &size)
+				embeddedIndex = append(embeddedIndex, []int64{start, size})
+			}
+		}
+	}
+
+	// Report indexing status
+	if !(newName && *outName == "-") {
+		if isIndexed {os.Stdout.WriteString("Using embedded index...\n")
+		} else {os.Stdout.WriteString("Searching for FLAC streams without an index...\n")}
+	}
+
 	// Set common buffer capacity
 	bufferCap := 8000
 
 	// Build the index of embedded FLAC streams
-	if !(newName && *outName == "-") {os.Stdout.WriteString("Indexing embedded FLAC streams...\n")}
-	readPoint := int64(1500000)
+	var readPoint int64
+	var startPoint int64
+	if isIndexed {
+		last := len(embeddedIndex)-1
+		readPoint = embeddedIndex[last][0]+embeddedIndex[last][1]
+	} else {readPoint = 1500000}
 	sfxFile.Seek(readPoint, io.SeekStart)
 	sfxReader := bufio.NewReader(sfxFile)
 	block := make([]byte, 7)
 	isMixable := true
 	var titleBuilder strings.Builder
 	var index []flacInfo
+	var indexed int
 	numIndex := -1
-	for ;; readPoint++ {
+	for {
 		i := len(index)
-		if fileScanner(&block, sfxReader) != nil {
-			if numIndex == -1 {
-				os.Stdout.WriteString("No embedded FLAC streams found.\n")
-				sfxFile.Close()
-				exit(&index, 14)
-			} else if i == 0 {
-				os.Stdout.WriteString("None of the requested streams exist.\n")
-				sfxFile.Close()
-				exit(&index, 15)
-			}
-			if index[i-1].size == 0 {index[i-1].size = sfxTotalSize-index[i-1].start}
-			if i < 2 {isMixable = false}
-			break
-		}
-		if string(block) == "fLaC\x00\x00\x00" {
-			currentPoint := readPoint-6
-			index = append(index, *newFlacInfo())
-			index[i].start = currentPoint
-			index[i].file, _ = os.Open(filePath)
-			index[i].file.Seek(currentPoint, io.SeekStart)
-			for i, _ := range block {block[i] = '\x00'}
-			flacFileReader := bufio.NewReader(index[i].file)
-			for {
-				if fileScanner(&block, flacFileReader) != nil {break}
-				if string(block) == "\x00TITLE=" {
-					for {
-						titleByte, _ := flacFileReader.ReadByte()
-						if titleByte == '\x00' {
-							titleSize := titleBuilder.Len()
-							if titleSize != 0 {
-								index[i].title = string([]byte(titleBuilder.String())[0:titleSize-1])
-								titleBuilder.Reset()
-							}
-							break
-						}
-						titleBuilder.WriteByte(titleByte)
-					}
-					break
+		if indexed == indexSize {
+			readPoint++
+			if fileScanner(&block, sfxReader) != nil {
+				if numIndex == -1 {
+					os.Stdout.WriteString("No embedded FLAC streams found.\n")
+					sfxFile.Close()
+					exit(&index, 16)
+				} else if i == 0 {
+					os.Stdout.WriteString("None of the requested streams exist.\n")
+					sfxFile.Close()
+					exit(&index, 17)
 				}
-				if string(block) == strings.Repeat("\x00", 7) {break}
+				if index[i-1].size == 0 {index[i-1].size = sfxTotalSize-index[i-1].start}
+				if i < 2 {isMixable = false}
+				break
 			}
-			index[i].file.Seek(currentPoint, io.SeekStart)
-			index[i].stream, err = flac.New(index[i].file)
-			if err != nil {
+			if string(block) != "fLaC\x00\x00\x00" {continue}
+			startPoint = readPoint-7
+		} else {
+			startPoint = embeddedIndex[indexed][0]
+			indexed++
+		}
+		index = append(index, *newFlacInfo())
+		index[i].start = startPoint
+		if indexed != indexSize {index[i].size =  embeddedIndex[i][1]}
+		index[i].file, _ = os.Open(filePath)
+		index[i].file.Seek(startPoint, io.SeekStart)
+		for i, _ := range block {block[i] = '\x00'}
+		flacFileReader := bufio.NewReader(index[i].file)
+		for {
+			if fileScanner(&block, flacFileReader) != nil {break}
+			if string(block) == "\x00TITLE=" {
+				for {
+					titleByte, _ := flacFileReader.ReadByte()
+					if titleByte == '\x00' {
+						titleSize := titleBuilder.Len()
+						if titleSize != 0 {
+							index[i].title = string([]byte(titleBuilder.String())[0:titleSize-1])
+							titleBuilder.Reset()
+						}
+						break
+					}
+					titleBuilder.WriteByte(titleByte)
+				}
+				break
+			}
+			if string(block) == strings.Repeat("\x00", 7) {break}
+		}
+		index[i].file.Seek(startPoint, io.SeekStart)
+		index[i].stream, err = flac.New(index[i].file)
+		if err != nil {
+			index[i].file.Close()
+			index = index[:i]
+			continue
+		}
+		numIndex++
+		if i > 0 && index[i-1].size == 0 {index[i-1].size = startPoint-index[i-1].start}
+		index[i].index = numIndex
+		if numIncluded > 0 {
+			var isIncluded bool
+			for _, entry := range include {if numIndex == entry {isIncluded = true}}
+			if !isIncluded {
 				index[i].file.Close()
 				index = index[:i]
 				continue
 			}
-			numIndex++
-			if i > 0 && index[i-1].size == 0 {index[i-1].size = currentPoint-index[i-1].start}
-			index[i].index = numIndex
-			if numIncluded > 0 {
-				var isIncluded bool
-				for _, entry := range include {if numIndex == entry {isIncluded = true}}
-				if !isIncluded {
-					index[i].file.Close()
-					index = index[:i]
-					continue
-				}
-			}
-			index[i].sampleRate = int(index[i].stream.Info.SampleRate)
-			index[i].numChans = int(index[i].stream.Info.NChannels)
-			index[i].bitDepth = int(index[i].stream.Info.BitsPerSample)
-			index[i].numSamples = int(index[i].stream.Info.NSamples)
-			index[i].format = &audio.Format{
-				NumChannels: index[i].numChans,
-				SampleRate: index[i].sampleRate,
-			}
-			if !info && !flacenc {
-				index[i].rawBuffer = make([]int, bufferCap)
-				index[i].intBuffer = &audio.IntBuffer{Format: index[i].format, Data: make([]int, bufferCap)}
-				index[i].floatBuffer = &audio.FloatBuffer{Format: index[i].format, Data: make([]float64, bufferCap)}
-			}
-			if i > 0 && *index[i].format != *index[0].format {isMixable = false}
 		}
+		index[i].sampleRate = int(index[i].stream.Info.SampleRate)
+		index[i].numChans = int(index[i].stream.Info.NChannels)
+		index[i].bitDepth = int(index[i].stream.Info.BitsPerSample)
+		index[i].numSamples = int(index[i].stream.Info.NSamples)
+		index[i].format = &audio.Format{
+			NumChannels: index[i].numChans,
+			SampleRate: index[i].sampleRate,
+		}
+		if !info && !flacenc {
+			index[i].rawBuffer = make([]int, bufferCap)
+			index[i].intBuffer = &audio.IntBuffer{Format: index[i].format, Data: make([]int, bufferCap)}
+			index[i].floatBuffer = &audio.FloatBuffer{Format: index[i].format, Data: make([]float64, bufferCap)}
+		}
+		if i > 0 && *index[i].format != *index[0].format {isMixable = false}
 	}
 
 	// Close sfxFile as it's no longer needed
@@ -403,6 +458,35 @@ func main() {
 
 	// Check if only a single output track
 	if numTracks == 1 {isSingle = true}
+
+	// Reject requests to write to standard output that are not single tracks
+	if outName != nil && *outName == "-" && !mix && !isSingle {
+		os.Stdout.WriteString("Can only write a single track to standard output, but multiple selected.\n")
+		exit(&index, 18)
+	}
+
+	// Set default output directory, or default mix file, if not given as argument
+	if outName == nil {
+		outName = new(string)
+		*outName = strings.TrimSuffix(filepath.Base(filePath), filepath.Ext(filePath))
+		if mix {*outName = *outName+".wav"}
+		if genIndex {*outName = *outName+".fsfxindex"}
+	}
+
+	// Write index to file if requested and exit
+	if genIndex {
+		os.Stdout.WriteString("Writing index to \""+*outName+"\"...\n")
+		os.MkdirAll(filepath.Dir(*outName), 0755)
+		outFile, _ := os.Create(*outName)
+		for _, flacStream := range index {
+			binary.Write(outFile, binary.LittleEndian, flacStream.start)
+			binary.Write(outFile, binary.LittleEndian, flacStream.size)
+		}
+		binary.Write(outFile, binary.LittleEndian, uint8(numIndex))
+		outFile.WriteString(sfxMagic)
+		outFile.Close()
+		exit(&index, 0)
+	}
 
 	// Set default title if none provided from metadata
 	for i, _ := range index {
@@ -436,19 +520,6 @@ func main() {
 		exit(&index, 0)
 	}
 
-	// Reject requests to write to standard output that are not single tracks
-	if outName != nil && *outName == "-" && !mix && !isSingle {
-		os.Stdout.WriteString("Can only write a single track to standard output, but multiple selected.\n")
-		exit(&index, 16)
-	}
-
-	// Set default output directory, or default mix file, if not given as argument
-	if outName == nil {
-		outName = new(string)
-		*outName = strings.TrimSuffix(filepath.Base(filePath), filepath.Ext(filePath))
-		if mix {*outName = *outName+".wav"}
-	}
-
 	// Establish outputs
 	for i, _ := range index {
 		if i == 0 {
@@ -467,7 +538,7 @@ func main() {
 				index[i].outFile, err = os.Create(*index[i].outName)
 				if err != nil {
 					os.Stdout.WriteString ("A problem was encountered while attempting to write to \""+*index[i].outName+"\".\n")
-					exit(&index, 17)
+					exit(&index, 19)
 				}
 			}
 			if !flacenc {
@@ -503,12 +574,11 @@ func main() {
 				"Use the -info and -i arguments together to validate if a subset of tracks are mixable.\n",
 			)
 		}
-		exit(&index, 18)
+		exit(&index, 20)
 	}
 
 	// Set up mix properties if needed
 	var (
-		outFile *os.File
 		wavEnc *wav.Encoder
 		mixFloatBuffer *audio.FloatBuffer
 		sourceTracks []*mixerInG.TrackInfo
@@ -525,7 +595,7 @@ func main() {
 			outFile, err = os.Create(*outName)
 			if err != nil {
 				os.Stdout.WriteString("A problem was encountered while attempting to write to \""+*outName+"\".\n")
-				exit(&index, 19)
+				exit(&index, 21)
 			}
 		}
 
