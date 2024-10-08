@@ -134,8 +134,8 @@ func help(err int) {
 		" -o <directory|file> Destination directory, or file for single entry, mix, or index\n"+
 		" -flac               Output FLAC, cannot be used with -mix\n"+
 		" -mix                Output mix to WAV\n"+
-		" -b <16|24|32>       Bit depth of mix\n"+
-		" -a                  Attenuate linearly to prevent clipping in mix, dividing by number of tracks\n"+
+		" -bits <16|24|32>    Bit depth of mix\n"+
+		" -attenuate          Attenuate linearly to prevent clipping in mix, dividing by number of tracks\n"+
 		" -info               Show stream info\n"+
 		" -index              Save the index to a file\n"+
 		" -ignoreindex        Ignore the index\n",
@@ -251,7 +251,7 @@ func main() {
 					if mix {help(5)}
 					mix = true
 					continue
-				case "b":
+				case "bits":
 					if bitDepth > 0 || i > len(os.Args)-2 {help(6)}
 					i++
 					bitDepth, err = strconv.Atoi(os.Args[i])
@@ -260,7 +260,7 @@ func main() {
 					bitDepth != 24 &&
 					bitDepth != 32) {help(7)}
 					continue
-				case "a":
+				case "attenuate":
 					if attenuate {help(8)}
 					attenuate = true
 					continue

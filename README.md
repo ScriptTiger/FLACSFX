@@ -12,8 +12,8 @@ Argument                  | Description
  `-o <directory\|file>`   | Destination directory, or file for single entry, mix, or index
  `-flac`                  | Output FLAC, cannot be used with -mix
  `-mix`                   | Output mix to WAV
- `-b <16\|24\|32>`        | Bit depth of mix
- `-a`                     | Attenuate linearly to prevent clipping in mix, dividing by number of tracks
+ `-bits <16\|24\|32>`     | Bit depth of mix
+ `-attenuate`             | Attenuate linearly to prevent clipping in mix, dividing by number of tracks
  `-info`                  | Show stream info
  `-index`                 | Save the index to a file
  `-ignoreindex`           | Ignore the index
