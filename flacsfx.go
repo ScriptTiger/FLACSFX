@@ -357,7 +357,7 @@ func main() {
 					}
 					break
 				}
-				if string(block) == strings.Repeat("\x00", 16) {break}
+				if string(block) == strings.Repeat("\x00", 7) {break}
 			}
 			index[i].file.Seek(currentPoint, io.SeekStart)
 			index[i].stream, err = flac.New(index[i].file)
