@@ -2,12 +2,10 @@ module main
 
 go 1.23.0
 
-replace github.com/go-audio/wav => github.com/ScriptTiger/wav v0.0.0-20241009130152-f2b055a7031c
-
 require (
-	github.com/ScriptTiger/mixerInG v0.0.0-20241008234606-0732d1be5c99
+	github.com/ScriptTiger/mixerInG v0.0.0-20241029175604-72f30deec918
 	github.com/go-audio/audio v1.0.0
-	github.com/go-audio/wav v0.0.0-20181013172942-de841e69b884
+	github.com/go-audio/wav v1.1.1-0.20241028151703-8b4315af2629
 	github.com/mewkiz/flac v1.0.12
 )
 
